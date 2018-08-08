@@ -1,83 +1,48 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from conans import ConanFile, CMake, tools
+from conans import ConanFile, tools, MSBuild
 import os
 
 
-class LibnameConan(ConanFile):
-    name = "libname"
-    version = "0.0.0"
+class PthreadWin32Conan(ConanFile):
+    name = "pthread-win32"
+    version = "2.9.1"
     description = "Keep it short"
-    url = "https://github.com/bincrafters/conan-libname"
-    homepage = "https://github.com/original_author/original_lib"
+    url = "https://github.com/bincrafters/conan-pthread-win32"
+    homepage = "http://www.sourceware.org/pthreads-win32/"
     author = "Bincrafters <bincrafters@gmail.com>"
-    # Indicates License type of the packaged library
-    license = "MIT"
-
-    # Packages the license for the conanfile.py
+    license = "GNU LGPL"
     exports = ["LICENSE.md"]
 
-    # Remove following lines if the target lib does not use cmake.
-    exports_sources = ["CMakeLists.txt"]
-    generators = "cmake"
-
     # Options may need to change depending on the packaged library.
-    settings = "os", "arch", "compiler", "build_type"
-    options = {"shared": [True, False], "fPIC": [True, False]}
-    default_options = "shared=False", "fPIC=True"
-
-    # Custom attributes for Bincrafters recipe conventions
+    settings = {"os": "Windows", "arch": None, "compiler": "Visual Studio", "build_type": None}
+    options = {"shared": [True, False]}
+    default_options = "shared=False"
     source_subfolder = "source_subfolder"
-    build_subfolder = "build_subfolder"
-
-    # Use version ranges for dependencies unless there's a reason not to
-    # Update 2/9/18 - Per conan team, ranges are slow to resolve.
-    # So, with libs like zlib, updates are very rare, so we now use static version
-
-
-    requires = (
-        "OpenSSL/[>=1.0.2l]@conan/stable",
-        "zlib/1.2.11@conan/stable"
-    )
-
-    def config_options(self):
-        if self.settings.os == 'Windows':
-            del self.options.fPIC
 
     def source(self):
-        source_url = "https://github.com/libauthor/libname"
-        tools.get("{0}/archive/v{1}.tar.gz".format(source_url, self.version))
-        extracted_dir = self.name + "-" + self.version
-
-        #Rename to "source_subfolder" is a convention to simplify later steps
-        os.rename(extracted_dir, self.source_subfolder)
-
-    def configure_cmake(self):
-        cmake = CMake(self)
-        cmake.definitions["BUILD_TESTS"] = False # example
-        if self.settings.os != 'Windows':
-            cmake.definitions['CMAKE_POSITION_INDEPENDENT_CODE'] = self.options.fPIC
-        cmake.configure(build_folder=self.build_subfolder)
-        return cmake
+        tools.get("https://github.com/GerHobbelt/pthread-win32/archive/master.zip")
+        os.rename('pthread-win32-master', self.source_subfolder)
 
     def build(self):
-        cmake = self.configure_cmake()
-        cmake.build()
+        with tools.chdir(self.source_subfolder):
+            solution_name = {15: 'pthread.2015.sln',
+                             14: 'pthread.2015.sln',
+                             13: 'pthread.2013.sln'}.get(int(str(self.settings.compiler.version)))
+            targets = ['pthread_dll'] if self.options.shared else ['pthread_lib']
+            msbuild = MSBuild(self)
+            msbuild.build(solution_name, targets=targets, platforms={"x86": "Win32"})
 
     def package(self):
-        self.copy(pattern="LICENSE", dst="licenses", src=self.source_subfolder)
-        cmake = self.configure_cmake()
-        cmake.install()
-        # If the CMakeLists.txt has a proper install method, the steps below may be redundant
-        # If so, you can just remove the lines below
-        include_folder = os.path.join(self.source_subfolder, "include")
-        self.copy(pattern="*", dst="include", src=include_folder)
+        self.copy(pattern="LICENSE", dst="COPYING", src=self.source_subfolder)
+        self.copy(pattern="pthread.h", dst="include", src=self.source_subfolder)
+        self.copy(pattern="sched.h", dst="include", src=self.source_subfolder)
+        self.copy(pattern="semaphore.h", dst="include", src=self.source_subfolder)
         self.copy(pattern="*.dll", dst="bin", keep_path=False)
         self.copy(pattern="*.lib", dst="lib", keep_path=False)
-        self.copy(pattern="*.a", dst="lib", keep_path=False)
-        self.copy(pattern="*.so*", dst="lib", keep_path=False)
-        self.copy(pattern="*.dylib", dst="lib", keep_path=False)
 
     def package_info(self):
-        self.cpp_info.libs = tools.collect_libs(self)
+        self.cpp_info.libs = ['pthread_dll' if self.options.shared else 'pthread_lib']
+        if not self.options.shared:
+            self.cpp_info.defines.append('PTW32_STATIC_LIB=1')
