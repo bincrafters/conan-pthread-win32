@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 from conans import ConanFile, tools, MSBuild
 import os
 
@@ -11,7 +8,6 @@ class PthreadWin32Conan(ConanFile):
     description = "Keep it short"
     url = "https://github.com/bincrafters/conan-pthread-win32"
     homepage = "http://www.sourceware.org/pthreads-win32/"
-    author = "Bincrafters <bincrafters@gmail.com>"
     license = "GNU LGPL"
     exports = ["LICENSE.md"]
 
