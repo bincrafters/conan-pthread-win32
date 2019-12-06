@@ -23,7 +23,8 @@ class PthreadWin32Conan(ConanFile):
 
     def build(self):
         with tools.chdir(self._source_subfolder):
-            solution_name = {15: 'pthread.2015.sln',
+            solution_name = {16: 'pthread.2015.sln',
+                             15: 'pthread.2015.sln',
                              14: 'pthread.2015.sln',
                              12: 'pthread.2013.sln'}.get(int(str(self.settings.compiler.version)))
             targets = ['pthread_dll'] if self.options.shared else ['pthread_lib']
